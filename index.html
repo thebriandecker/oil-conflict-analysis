@@ -820,19 +820,19 @@ body {
 // LIVE TICKER DATA ENGINE
 // ============================================
 const TICKERS = [
-  { symbol: 'CL=F', label: 'WTI Crude', prefix: '$', isOil: true },
-  { symbol: 'BZ=F', label: 'Brent Crude', prefix: '$', isOil: true },
-  { symbol: '^GSPC', label: 'S&P 500', prefix: '', isStock: true },
-  { symbol: '^VIX', label: 'VIX', prefix: '', isVix: true },
-  { symbol: 'GC=F', label: 'Gold', prefix: '$' },
-  { symbol: 'SLV', label: 'SLV', prefix: '$', isStock: true },
-  { symbol: 'XOM', label: 'XOM', prefix: '$', isStock: true },
-  { symbol: 'CCJ', label: 'CCJ', prefix: '$', isStock: true },
-  { symbol: 'RTX', label: 'RTX', prefix: '$', isStock: true },
-  { symbol: 'BOAT', label: 'BOAT', prefix: '$', isStock: true },
-  { symbol: 'FRO', label: 'FRO', prefix: '$', isStock: true },
-  { symbol: 'DHT', label: 'DHT', prefix: '$', isStock: true },
-  { symbol: 'INSW', label: 'INSW', prefix: '$', isStock: true },
+  { symbol: 'CL=F', label: 'WTI Crude', prefix: '$', invertColor: true },
+  { symbol: 'BZ=F', label: 'Brent Crude', prefix: '$', invertColor: true },
+  { symbol: '^GSPC', label: 'S&P 500', prefix: '' },
+  { symbol: '^VIX', label: 'VIX', prefix: '', invertColor: true },
+  { symbol: 'GC=F', label: 'Gold', prefix: '$', invertColor: true },
+  { symbol: 'SLV', label: 'SLV', prefix: '$' },
+  { symbol: 'XOM', label: 'XOM', prefix: '$' },
+  { symbol: 'CCJ', label: 'CCJ', prefix: '$' },
+  { symbol: 'RTX', label: 'RTX', prefix: '$' },
+  { symbol: 'BOAT', label: 'BOAT', prefix: '$' },
+  { symbol: 'FRO', label: 'FRO', prefix: '$' },
+  { symbol: 'DHT', label: 'DHT', prefix: '$' },
+  { symbol: 'INSW', label: 'INSW', prefix: '$' },
 ];
 
 // Build initial ticker cards
@@ -883,11 +883,22 @@ function formatPrice(val, prefix) {
   return prefix + val.toFixed(2);
 }
 
-function formatChg(pct) {
+function formatChg(pct, ticker) {
   if (pct === null || pct === undefined) return { text: '—', cls: '' };
   const sign = pct >= 0 ? '+' : '';
   const text = sign + pct.toFixed(2) + '%';
-  const cls = pct >= 0 ? 'chg-up' : 'chg-down';
+
+  // Color logic based on portfolio impact:
+  // Oil (WTI, Brent): up = red (headwind), down = green (tailwind)
+  // VIX: up = red (fear), down = green (calm)
+  // Gold: up = red (flight to safety = risk-off), down = green
+  // Stocks/ETFs: up = green (good), down = red (bad)
+  let cls;
+  if (ticker.invertColor) {
+    cls = pct >= 0 ? 'chg-down' : 'chg-up';
+  } else {
+    cls = pct >= 0 ? 'chg-up' : 'chg-down';
+  }
   return { text, cls };
 }
 
@@ -948,8 +959,8 @@ function updateTickerCard(ticker, data) {
   priceEl.textContent = formatPrice(data.currentPrice, ticker.prefix);
   priceEl.classList.remove('ticker-loading');
 
-  const d = formatChg(data.dailyPct);
-  const w = formatChg(data.weekPct);
+  const d = formatChg(data.dailyPct, ticker);
+  const w = formatChg(data.weekPct, ticker);
 
   changesEl.innerHTML = `
     <span class="chg-label">1D</span><span class="${d.cls}">${d.text}</span>
