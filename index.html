@@ -616,7 +616,7 @@ body {
           <td class="event-name">Gulf War I</td>
           <td>1990</td>
           <td><div class="spike-bar"><div class="spike-bar-fill" style="width:89px;background:var(--red)"></div><span class="oil-up">+89%</span></div></td>
-          <td class="oil-down">−57%</td>
+          <td style="color:var(--white)">−57%</td>
           <td>36 wks</td>
           <td class="stock-up">+16%</td>
         </tr>
@@ -624,7 +624,7 @@ body {
           <td class="event-name">Iraq War</td>
           <td>2003</td>
           <td><div class="spike-bar"><div class="spike-bar-fill" style="width:48px;background:var(--red)"></div><span class="oil-up">+24%</span></div></td>
-          <td class="oil-down">−33%</td>
+          <td style="color:var(--white)">−33%</td>
           <td>12 wks</td>
           <td class="stock-up">+14%</td>
         </tr>
@@ -632,7 +632,7 @@ body {
           <td class="event-name">Iran Sanctions</td>
           <td>2012</td>
           <td><div class="spike-bar"><div class="spike-bar-fill" style="width:40px;background:var(--red)"></div><span class="oil-up">+20%</span></div></td>
-          <td class="oil-down">−28%</td>
+          <td style="color:var(--white)">−28%</td>
           <td>16 wks</td>
           <td class="stock-up">+10%</td>
         </tr>
@@ -640,7 +640,7 @@ body {
           <td class="event-name">Aramco Drone Strike</td>
           <td>2019</td>
           <td><div class="spike-bar"><div class="spike-bar-fill" style="width:30px;background:var(--red)"></div><span class="oil-up">+15%</span></div></td>
-          <td class="oil-down">−15%</td>
+          <td style="color:var(--white)">−15%</td>
           <td>2 wks</td>
           <td class="stock-up">+2%</td>
         </tr>
@@ -648,7 +648,7 @@ body {
           <td class="event-name">Russia-Ukraine</td>
           <td>2022</td>
           <td><div class="spike-bar"><div class="spike-bar-fill" style="width:60px;background:var(--red)"></div><span class="oil-up">+40%</span></div></td>
-          <td class="oil-down">−43%</td>
+          <td style="color:var(--white)">−43%</td>
           <td>18 wks</td>
           <td class="stock-up">+8%</td>
         </tr>
@@ -709,7 +709,7 @@ body {
           <div class="phase-dates">Days 7–21 &nbsp;|&nbsp; Mar 7–21</div>
         </div>
         <div class="phase-oil">WTI $85–$100+ &nbsp;|&nbsp; S&P −3% to −8% &nbsp;|&nbsp; Semis −5% to −10%</div>
-        <div class="phase-action action-buy">FIRST TRANCHE — Scale into SMH, SOXX, NVDA, VRT on dips</div>
+        <div class="phase-action action-buy">FIRST TRANCHE — Lightly scale into stocks in value zones based on your selected positions</div>
       </div>
 
       <div class="timeline-phase">
@@ -741,7 +741,7 @@ body {
     </div>
 
     <div class="disclaimer">
-      <strong>Target Tickers:</strong> NVDA, AVGO, AMD, SMH, SOXX, VRT, PLTR, ISRG, PWR, EQIX &nbsp;|&nbsp;
+      <strong>Target Tickers:</strong> Will Provide Value Zones to TWS ideally focusing on names with strong earnings that were extended that have retraced back to 50D EMA or 200D EMA. &nbsp;|&nbsp;
       <strong>ISM Signal:</strong> Manufacturing at 52.4 with New Orders 55.8 provides fundamental floor — pullbacks will be shallow and temporary.
     </div>
   </div>
@@ -911,22 +911,30 @@ async function loadTickerData(ticker) {
   const meta = result.meta;
   const closes = result.indicators.adjclose?.[0]?.adjclose || result.indicators.quote?.[0]?.close || [];
 
-  const currentPrice = meta.regularMarketPrice;
-  const prevClose = meta.chartPreviousClose || meta.previousClose;
+  // Filter out null values but keep index mapping
+  const validCloses = closes.filter(c => c !== null && c !== undefined);
+  const n = validCloses.length;
 
-  // Calculate daily change
+  if (n < 2) return null;
+
+  // Current price = last close in the array (today's or most recent)
+  const currentPrice = meta.regularMarketPrice || validCloses[n - 1];
+
+  // Daily change = current price vs PREVIOUS day's close (second to last in array)
   let dailyPct = null;
-  if (currentPrice && prevClose) {
-    dailyPct = ((currentPrice - prevClose) / prevClose) * 100;
+  const prevDayClose = validCloses[n - 2];
+  if (currentPrice && prevDayClose) {
+    dailyPct = ((currentPrice - prevDayClose) / prevDayClose) * 100;
   }
 
-  // Calculate 7-day change
+  // 7-day change = current price vs close from ~5 trading days ago
+  // (5 trading days ≈ 7 calendar days)
   let weekPct = null;
-  const validCloses = closes.filter(c => c !== null && c !== undefined);
-  if (validCloses.length >= 6 && currentPrice) {
-    const weekAgo = validCloses[Math.max(0, validCloses.length - 6)];
-    weekPct = ((currentPrice - weekAgo) / weekAgo) * 100;
-  } else if (validCloses.length >= 2 && currentPrice) {
+  if (n >= 6 && currentPrice) {
+    const weekAgoClose = validCloses[n - 6];
+    weekPct = ((currentPrice - weekAgoClose) / weekAgoClose) * 100;
+  } else if (n >= 2 && currentPrice) {
+    // Use earliest available if less than 6 days of data
     const earliest = validCloses[0];
     weekPct = ((currentPrice - earliest) / earliest) * 100;
   }
