@@ -883,26 +883,16 @@ function formatPrice(val, prefix) {
   return prefix + val.toFixed(2);
 }
 
-function formatChg(pct, ticker) {
+function formatChg(pct) {
   if (pct === null || pct === undefined) return { text: '—', cls: '' };
   const sign = pct >= 0 ? '+' : '';
   const text = sign + pct.toFixed(2) + '%';
-
-  // Color logic:
-  // Oil tickers: up = red (bad), down = green (good)
-  // VIX: up = red, down = green
-  // Stocks/everything else: up = green, down = red
-  let cls;
-  if (ticker.isOil || ticker.isVix) {
-    cls = pct >= 0 ? 'chg-down' : 'chg-up'; // inverted: oil up is red
-  } else {
-    cls = pct >= 0 ? 'chg-up' : 'chg-down';
-  }
+  const cls = pct >= 0 ? 'chg-up' : 'chg-down';
   return { text, cls };
 }
 
 async function loadTickerData(ticker) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker.symbol}?range=10d&interval=1d&includePrePost=false`;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker.symbol}?range=1mo&interval=1d&includePrePost=false`;
   const data = await fetchWithProxy(url);
 
   if (!data || !data.chart || !data.chart.result || !data.chart.result[0]) return null;
@@ -911,30 +901,29 @@ async function loadTickerData(ticker) {
   const meta = result.meta;
   const closes = result.indicators.adjclose?.[0]?.adjclose || result.indicators.quote?.[0]?.close || [];
 
-  // Filter out null values but keep index mapping
+  // Filter out null values
   const validCloses = closes.filter(c => c !== null && c !== undefined);
   const n = validCloses.length;
 
   if (n < 2) return null;
 
-  // Current price = last close in the array (today's or most recent)
+  // Current price from Yahoo's real-time field (most accurate)
   const currentPrice = meta.regularMarketPrice || validCloses[n - 1];
 
-  // Daily change = current price vs PREVIOUS day's close (second to last in array)
+  // 1D change = current price vs previous trading day's close
   let dailyPct = null;
   const prevDayClose = validCloses[n - 2];
   if (currentPrice && prevDayClose) {
     dailyPct = ((currentPrice - prevDayClose) / prevDayClose) * 100;
   }
 
-  // 7-day change = current price vs close from ~5 trading days ago
-  // (5 trading days ≈ 7 calendar days)
+  // 7D change = current price vs close 7 trading days ago
+  // closes[-8] = 7 trading days before the previous close
   let weekPct = null;
-  if (n >= 6 && currentPrice) {
-    const weekAgoClose = validCloses[n - 6];
-    weekPct = ((currentPrice - weekAgoClose) / weekAgoClose) * 100;
+  if (n >= 8 && currentPrice) {
+    const sevenDayAgoClose = validCloses[n - 8];
+    weekPct = ((currentPrice - sevenDayAgoClose) / sevenDayAgoClose) * 100;
   } else if (n >= 2 && currentPrice) {
-    // Use earliest available if less than 6 days of data
     const earliest = validCloses[0];
     weekPct = ((currentPrice - earliest) / earliest) * 100;
   }
@@ -959,8 +948,8 @@ function updateTickerCard(ticker, data) {
   priceEl.textContent = formatPrice(data.currentPrice, ticker.prefix);
   priceEl.classList.remove('ticker-loading');
 
-  const d = formatChg(data.dailyPct, ticker);
-  const w = formatChg(data.weekPct, ticker);
+  const d = formatChg(data.dailyPct);
+  const w = formatChg(data.weekPct);
 
   changesEl.innerHTML = `
     <span class="chg-label">1D</span><span class="${d.cls}">${d.text}</span>
