@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Oil, Conflict & Market Timing — The Wealth Society</title>
+<meta name="description" content="Probabilistic framework for entry timing during the US-Iran conflict. When to buy. What to buy. Where the bottom forms." />
+<meta property="og:title" content="Oil, Conflict & Market Timing — The Wealth Society" />
+<meta property="og:description" content="Probabilistic framework for 4th Industrial Revolution entry timing during the US-Iran conflict." />
+<meta property="og:type" content="website" />
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: #0d1117; color: #e6edf3; font-family: 'JetBrains Mono', monospace; -webkit-font-smoothing: antialiased; }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: #0d1117; }
+  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes barGrow { from { width: 0; } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .fade-up { animation: fadeUp 0.5s ease forwards; opacity: 0; }
+  .bar-grow { animation: barGrow 0.8s ease forwards; }
+  .live-pulse { animation: pulse 2s ease-in-out infinite; }
+  @media (max-width: 768px) {
+    .scenario-grid { grid-template-columns: 36px 1fr !important; }
+    .scenario-extras { display: none !important; }
+    .hist-grid { grid-template-columns: 28px 1fr 56px 56px 40px !important; }
+    .ticker-strip { gap: 12px !important; }
+    .ticker-strip > div { flex-direction: column !important; gap: 2px !important; }
+    .stat-row { flex-direction: column !important; }
+    .tab-nav { overflow-x: auto; }
+    .tab-nav button { font-size: 10px !important; padding: 8px 10px !important; white-space: nowrap; }
+    .recovery-header { flex-direction: column !important; }
+    .recovery-returns { gap: 12px !important; }
+    .phase-card-inner { flex-direction: column !important; }
+    .phase-actions { margin-top: 8px; }
+    .main-title { font-size: 36px !important; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const C = {
+  bg: "#0d1117", card: "#161b22", cardAlt: "#1c2230", border: "#30363d",
+  orange: "#f0a030", teal: "#2dd4bf", red: "#ef4444", green: "#22c55e",
+  yellow: "#facc15", blue: "#3b82f6", purple: "#a78bfa", white: "#e6edf3",
+  muted: "#8b949e", dim: "#6e7681",
+};
+
+const scenarios = [
+  { id: "01", name: "Rapid De-escalation", sub: "1–2 WEEKS", oil: "$70–80", prob: "25–30%", pc: C.green, sp: "Flat to +2%", sc: C.green, spSub: "Full recovery within 2 weeks", bw: 28, trigger: "Iran regime cooperates; Hormuz reopens" },
+  { id: "02", name: "Controlled Conflict", sub: "3–5 WEEKS", oil: "$85–95", prob: "40–45%", pc: C.orange, sp: "-3% to -5%", sc: C.orange, spSub: "Recovery in 4–6 wks post-resolution", bw: 55, trigger: "Trump's 4-wk target; partial Hormuz restoration" },
+  { id: "03", name: "Extended Hormuz Closure", sub: "6+ WEEKS", oil: "$95–120+", prob: "15–20%", pc: C.red, sp: "-8% to -13%", sc: C.red, spSub: "Wells Fargo worst case: S&P 6,000", bw: 78, trigger: "Strait remains closed; infrastructure damage" },
+  { id: "04", name: "Full Regional War", sub: "MULTI-MONTH", oil: "$120–150+", prob: "5–10%", pc: C.red, sp: "-15%+", sc: C.red, spSub: "1970s-style shock; stagflation", bw: 95, trigger: "GCC infrastructure destroyed; OPEC offline" },
+];
+
+const historical = [
+  { id: "01", name: "Gulf War", date: "AUG 1990", spike: "+89%", crash: "-57%", weeks: "36w", sw: 89, cw: 57, skC: C.orange, recovery: "S&P +16% after start", hl: true },
+  { id: "02", name: "9/11 / Afghanistan", date: "SEP 2001", spike: "-33%", crash: "+48%", weeks: "8w", sw: 33, cw: 48, skC: C.red, recovery: "Oil fell, then rebounded" },
+  { id: "03", name: "Iraq War (Invasion)", date: "MAR 2003", spike: "+24%", crash: "-33%", weeks: "12w", sw: 24, cw: 33, skC: C.orange, recovery: "S&P +14% within 2 months" },
+  { id: "04", name: "Libya Civil War", date: "FEB 2011", spike: "+25%", crash: "-28%", weeks: "20w", sw: 25, cw: 28, skC: C.orange, recovery: "Oil faded over months" },
+  { id: "05", name: "Syria Strikes", date: "AUG 2013", spike: "+6%", crash: "-12%", weeks: "6w", sw: 6, cw: 12, skC: C.orange, recovery: "Full recovery in 3 weeks" },
+  { id: "06", name: "Aramco Drone Attack", date: "SEP 2019", spike: "+15%", crash: "-15%", weeks: "2w", sw: 15, cw: 15, skC: C.orange, recovery: "Gone in 14 days" },
+  { id: "07", name: "Soleimani Strike", date: "JAN 2020", spike: "+4%", crash: "-67%", weeks: "8w", sw: 4, cw: 67, skC: C.orange, recovery: "COVID crushed oil after" },
+  { id: "08", name: "Russia-Ukraine", date: "FEB 2022", spike: "+40%", crash: "-43%", weeks: "18w", sw: 40, cw: 43, skC: C.orange, recovery: "Tech bottomed June (3mo lag)", hl: true },
+  { id: "09", name: "Israel-Hamas War", date: "OCT 2023", spike: "+8%", crash: "-18%", weeks: "8w", sw: 8, cw: 18, skC: C.orange, recovery: "Stocks up, oil down in 2mo" },
+  { id: "10", name: "Iran–Bahrain Escalation", date: "FEB 2025", spike: "+12%", crash: "-10%", weeks: "4w", sw: 12, cw: 10, skC: C.orange, recovery: "Brief disruption faded" },
+  { id: "11", name: "US-Iran 2026", date: "FEB 2026", spike: "+13%", crash: "TBD", weeks: "LIVE", sw: 13, cw: 0, skC: C.red, recovery: "DEVELOPING — Hormuz closed", hl: true, live: true },
+];
+
+const phases = [
+  { id: "01", name: "Shock & Awe", tl: "Days 1–7", dt: "NOW → Mar 7", oil: "$72–85", c: C.muted, act: "WATCH", ac: C.yellow, desc: "Volatility spike; VIX 20–28. Dip-buy in mega-cap only. Do NOT chase." },
+  { id: "02", name: "Escalation Pricing", tl: "Days 7–21", dt: "Mar 7–21", oil: "$85–100+", c: C.orange, act: "1ST TRANCHE", ac: C.green, desc: "S&P -3% to -8%. Begin scaling into SMH, NVDA, AVGO, VRT on -7% to -10% dips." },
+  { id: "03", name: "Peak Fear", tl: "Days 21–35", dt: "Mar 21 → Apr 4", oil: "$90–110", c: C.red, act: "AGGRESSIVE BUY", ac: C.green, desc: "Maximum drawdown. VIX 28–35. History says the bottom is HERE. Deploy 2nd tranche." },
+  { id: "04", name: "Resolution", tl: "Days 35–60", dt: "Apr → May", oil: "$65–80", c: C.teal, act: "HOLD & ADD", ac: C.blue, desc: "V-recovery begins. Hormuz reopens. Growth rotation resumes. 10–20% gains start." },
+  { id: "05", name: "Bull Resumption", tl: "Days 60–180", dt: "May → Sep", oil: "$60–70", c: C.green, act: "FULL POSITION", ac: C.green, desc: "New highs. AI capex accelerates. WF target 7,500. Well-timed entries = 20–40% returns." },
+];
+
+const recoveryData = [
+  { scenario: "Quick Resolution", sub: "Trump's 4-week target", bottom: "Within 1–2 weeks", recovery: "Full in 30 days", sp: "+12–16%", smh: "+15–25%", c: C.green },
+  { scenario: "Controlled Conflict", sub: "6–8 weeks", bottom: "Weeks 2–4 (mid-Mar → early Apr)", recovery: "Begins 2–4 wks after oil peaks", sp: "+8–12%", smh: "+12–20%", c: C.orange },
+  { scenario: "Extended Disruption", sub: "3+ months", bottom: "Weeks 6–12 (May–June)", recovery: "Doesn't reclaim highs until Q4", sp: "Flat to +5%", smh: "+5–15%", c: C.red },
+];
+
+function StatBox({ label, value, sub, accent }) {
+  return (
+    <div style={{ background: C.cardAlt, border: `1px solid ${C.border}`, borderTop: `3px solid ${accent}`, padding: "16px 18px", flex: 1, minWidth: 180 }}>
+      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: C.muted, letterSpacing: 2, marginBottom: 6, textTransform: "uppercase" }}>{label}</div>
+      <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 34, fontWeight: 700, color: accent, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: C.dim, marginTop: 6, lineHeight: 1.4 }}>{sub}</div>
+    </div>
+  );
+}
+
+function OilBar({ width, color, delay }) {
+  const [show, setShow] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const t = setTimeout(() => setShow(true), delay || 0);
+    return () => clearTimeout(t);
+  }, [delay]);
+  return (
+    <div style={{ height: 6, borderRadius: 3, background: `${color}22`, width: "100%", overflow: "hidden" }}>
+      <div style={{
+        height: "100%", borderRadius: 3,
+        background: `linear-gradient(90deg, ${color}, ${color}88)`,
+        width: show ? `${Math.min(width, 100)}%` : "0%",
+        transition: "width 0.8s ease",
+      }} />
+    </div>
+  );
+}
+
+function App() {
+  const [tab, setTab] = useState(0);
+  const tabs = ["SCENARIO MATRIX", "HISTORICAL PLAYBOOK", "ENTRY TIMING", "RECOVERY TIMELINE"];
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      {/* HEADER */}
+      <div style={{ background: `linear-gradient(180deg, ${C.cardAlt} 0%, ${C.bg} 100%)`, padding: "32px 24px 16px", borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ maxWidth: 960, margin: "0 auto" }}>
+          <div style={{ fontSize: 12, color: C.orange, letterSpacing: 3, marginBottom: 8 }}>
+            THE WEALTH SOCIETY · CONFLICT INTELLIGENCE · MARCH 2, 2026
+          </div>
+          <h1 className="main-title" style={{ fontFamily: "'Oswald', sans-serif", fontSize: 48, fontWeight: 700, margin: 0, lineHeight: 1.05, letterSpacing: 1 }}>
+            OIL, CONFLICT &<br />
+            <span style={{ color: C.orange }}>MARKET TIMING</span>
+          </h1>
+          <p style={{ fontSize: 13, color: C.muted, margin: "10px 0 0", lineHeight: 1.5, maxWidth: 600 }}>
+            Probabilistic framework for entry timing during the US-Iran conflict.<br />
+            When to buy. What to buy. Where the bottom forms.
+          </p>
+
+          {/* Ticker strip */}
+          <div className="ticker-strip" style={{ display: "flex", gap: 20, marginTop: 18, flexWrap: "wrap" }}>
+            {[
+              { l: "WTI CRUDE", v: "$72.39", ch: "+8.01%" },
+              { l: "BRENT", v: "$79.07", ch: "+8.51%" },
+              { l: "S&P 500", v: "6,881", ch: "+0.04%" },
+              { l: "VIX", v: "21.48", ch: "+8.16%" },
+              { l: "GOLD", v: "$5,317", ch: "+2.0%" },
+            ].map((t, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                <span style={{ fontSize: 10, color: C.dim, letterSpacing: 1 }}>{t.l}</span>
+                <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 17, fontWeight: 600, color: C.white }}>{t.v}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: C.green }}>{t.ch}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Tabs */}
+          <div className="tab-nav" style={{ display: "flex", gap: 0, marginTop: 20, borderBottom: `1px solid ${C.border}` }}>
+            {tabs.map((t, i) => (
+              <button key={i} onClick={() => setTab(i)} style={{
+                background: tab === i ? C.card : "transparent",
+                border: "none", borderBottom: tab === i ? `2px solid ${C.orange}` : "2px solid transparent",
+                color: tab === i ? C.orange : C.muted,
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 600,
+                padding: "10px 16px", cursor: "pointer", letterSpacing: 1, transition: "all 0.15s",
+              }}>{t}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* CONTENT */}
+      <div style={{ maxWidth: 960, margin: "0 auto", padding: "0 24px 60px" }}>
+
+        {/* SECTION HEADER HELPER */}
+        {(() => {
+          const SH = ({ num, title, sub }) => (
+            <div style={{ margin: "48px 0 28px" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
+                <span style={{ fontSize: 12, color: C.orange, letterSpacing: 2, fontWeight: 600 }}>SECTION {num}</span>
+                <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${C.orange}44, transparent)` }} />
+              </div>
+              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 36, fontWeight: 700, color: C.white, lineHeight: 1.1, letterSpacing: 1 }}>{title}</div>
+              {sub && <p style={{ fontSize: 12, color: C.muted, margin: "6px 0 0", letterSpacing: 1 }}>{sub}</p>}
+            </div>
+          );
+
+          /* === TAB 0: SCENARIO MATRIX === */
+          if (tab === 0) return (
+            <div className="fade-up" key="t0">
+              <SH num="01" title={<>OIL PRICE SCENARIO MATRIX</>} sub="PATH TO $85+ · WTI / BRENT · PROBABILITY-WEIGHTED OUTCOMES" />
+
+              <div className="scenario-grid" style={{ display: "grid", gridTemplateColumns: "42px 1fr 84px 76px 96px 140px", gap: 0, padding: "8px 10px", borderBottom: `1px solid ${C.border}`, marginBottom: 2 }}>
+                <span style={{ fontSize: 10, color: C.dim, letterSpacing: 1 }}>#</span>
+                <span style={{ fontSize: 10, color: C.dim, letterSpacing: 1 }}>SCENARIO</span>
+                <span className="scenario-extras" style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textAlign: "center" }}>OIL TARGET</span>
+                <span className="scenario-extras" style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textAlign: "center" }}>PROB.</span>
+                <span className="scenario-extras" style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textAlign: "center" }}>S&P IMPACT</span>
+                <span className="scenario-extras" style={{ fontSize: 10, color: C.dim, letterSpacing: 1 }}>TRIGGER</span>
+              </div>
+
+              {scenarios.map((s, i) => (
+                <div key={i} className="scenario-grid" style={{
+                  display: "grid", gridTemplateColumns: "42px 1fr 84px 76px 96px 140px",
+                  alignItems: "center", padding: "14px 10px",
+                  background: i % 2 === 1 ? C.card : "transparent",
+                  borderLeft: `3px solid ${s.pc}`, marginBottom: 2,
+                }}>
+                  <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 17, fontWeight: 700, color: C.dim }}>{s.id}</span>
+                  <div>
+                    <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 17, fontWeight: 600, color: C.white }}>{s.name}</div>
+                    <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>{s.sub}</div>
+                    {/* Mobile: show oil + prob inline */}
+                    <div className="scenario-extras" style={{ display: "none" }}></div>
+                    <div style={{ marginTop: 5, width: "85%" }}>
+                      <OilBar width={s.bw} color={s.pc} delay={i * 150} />
+                    </div>
+                    {/* Mobile extra info */}
+                    <div style={{ marginTop: 6 }}>
+                      <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, fontWeight: 700, color: C.orange, marginRight: 12 }}>{s.oil}</span>
+                      <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, fontWeight: 700, color: s.pc, marginRight: 12 }}>{s.prob}</span>
+                      <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, fontWeight: 700, color: s.sc }}>{s.sp}</span>
+                    </div>
+                  </div>
+                  <div className="scenario-extras" style={{ textAlign: "center" }}>
+                    <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 17, fontWeight: 700, color: C.orange }}>{s.oil}</span>
+                  </div>
+                  <div className="scenario-extras" style={{ textAlign: "center" }}>
+                    <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, fontWeight: 700, color: s.pc }}>{s.prob}</span>
+                  </div>
+                  <div className="scenario-extras" style={{ textAlign: "center" }}>
+                    <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, fontWeight: 700, color: s.sc }}>{s.sp}</span>
+                    <div style={{ fontSize: 9, color: C.dim, marginTop: 2 }}>{s.spSub}</div>
+                  </div>
+                  <div className="scenario-extras" style={{ fontSize: 10, color: C.muted, lineHeight: 1.4 }}>{s.trigger}</div>
+                </div>
+              ))}
+
+              <div className="stat-row" style={{ marginTop: 24, display: "flex", gap: 14, flexWrap: "wrap" }}>
+                <StatBox label="BASE CASE" value="$85" sub="WTI within 7–14 days if Hormuz stays closed" accent={C.orange} />
+                <StatBox label="WALL ST RANGE" value="$80–90" sub="Citi base case for Brent this week" accent={C.teal} />
+                <StatBox label="WORST CASE" value="$120+" sub="Bernstein extreme — prolonged closure" accent={C.red} />
+              </div>
+
+              <div style={{ marginTop: 20, padding: "14px 16px", borderLeft: `3px solid ${C.orange}`, background: `${C.orange}08` }}>
+                <p style={{ fontSize: 12, color: C.muted, margin: 0, lineHeight: 1.6 }}>
+                  <span style={{ color: C.orange, fontWeight: 700 }}>KEY TRIGGER:</span> Goldman estimates a full 1-month Hormuz closure lifts oil ~$15/bbl. Even a 50% disruption with SPR releases adds $4–8. The halt is precautionary (not a formal blockade) — but the effect is identical.
+                </p>
+              </div>
+            </div>
+          );
+
+          /* === TAB 1: HISTORICAL PLAYBOOK === */
+          if (tab === 1) return (
+            <div className="fade-up" key="t1">
+              <SH num="02" title={<>WARS & <span style={{ color: C.orange }}>OIL</span></>} sub="EVERY MAJOR CONFLICT · OIL SPIKE vs CRASH · RECOVERY TIME · 1990–2026" />
+
+              <div style={{ display: "flex", gap: 14, marginBottom: 16, fontSize: 11 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ width: 14, height: 5, borderRadius: 3, background: C.orange }} />
+                  <span style={{ color: C.muted }}>OIL PRICE SPIKE</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ width: 14, height: 5, borderRadius: 3, background: C.teal }} />
+                  <span style={{ color: C.muted }}>CRASH FROM PEAK</span>
+                </div>
+              </div>
+
+              <div className="hist-grid" style={{ display: "grid", gridTemplateColumns: "32px 1fr 64px 64px 44px", gap: 0, padding: "6px 10px", borderBottom: `1px solid ${C.border}` }}>
+                <span style={{ fontSize: 9, color: C.dim }}>#</span>
+                <span style={{ fontSize: 9, color: C.dim }}>CONFLICT</span>
+                <span style={{ fontSize: 9, color: C.dim, textAlign: "center" }}>SPIKE</span>
+                <span style={{ fontSize: 9, color: C.dim, textAlign: "center" }}>CRASH</span>
+                <span style={{ fontSize: 9, color: C.dim, textAlign: "right" }}>WEEKS</span>
+              </div>
+
+              {historical.map((h, i) => (
+                <div key={i} className="hist-grid" style={{
+                  display: "grid", gridTemplateColumns: "32px 1fr 64px 64px 44px",
+                  alignItems: "center", padding: "9px 10px",
+                  background: h.live ? `${C.red}0a` : h.hl ? `${C.orange}06` : "transparent",
+                  borderLeft: h.live ? `3px solid ${C.red}` : h.hl ? `3px solid ${C.orange}44` : `3px solid transparent`,
+                  marginBottom: 1,
+                }}>
+                  <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, fontWeight: 700, color: h.live ? C.red : C.dim }}>{h.id}</span>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, fontWeight: 600, color: h.live ? C.red : C.white }}>{h.name}</span>
+                      {h.live && <span className="live-pulse" style={{ fontSize: 8, fontWeight: 700, color: C.red, background: `${C.red}22`, padding: "1px 5px", borderRadius: 2, letterSpacing: 1 }}>LIVE</span>}
+                    </div>
+                    <div style={{ fontSize: 9, color: C.muted, marginTop: 1 }}>{h.date}</div>
+                    <div style={{ display: "flex", gap: 3, marginTop: 4 }}>
+                      <OilBar width={Math.max(h.sw * 0.7, 3)} color={h.skC} delay={i * 80} />
+                      <div style={{ opacity: h.live ? 0.2 : 1, flex: 1 }}>
+                        <OilBar width={Math.max(h.cw * 0.5, 3)} color={h.live ? C.dim : C.teal} delay={i * 80 + 200} />
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 9, color: C.dim, marginTop: 2 }}>{h.recovery}</div>
+                  </div>
+                  <div style={{ textAlign: "center" }}>
+                    <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, fontWeight: 700, color: h.spike.startsWith("-") ? C.red : C.orange }}>{h.spike}</span>
+                  </div>
+                  <div style={{ textAlign: "center" }}>
+                    <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, fontWeight: 700, color: h.crash.startsWith("+") ? C.green : h.crash === "TBD" ? C.dim : C.teal }}>{h.crash}</span>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, fontWeight: 500, color: h.live ? C.red : C.muted }}>{h.weeks}</span>
+                  </div>
+                </div>
+              ))}
+
+              <div className="stat-row" style={{ marginTop: 24, display: "flex", gap: 14, flexWrap: "wrap" }}>
+                <StatBox label="BIGGEST SPIKE" value="+89%" sub="Gulf War 1990 — oil nearly doubled" accent={C.orange} />
+                <StatBox label="FASTEST CRASH" value="2 weeks" sub="Aramco Attack 2019 — gone in 14 days" accent={C.teal} />
+                <StatBox label="KEY ANALOG" value="2022" sub="Russia-Ukraine — closest to current" accent={C.red} />
+              </div>
+
+              <div style={{ marginTop: 20, padding: "14px 16px", borderLeft: `3px solid ${C.teal}`, background: `${C.teal}08` }}>
+                <p style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, color: C.muted, margin: 0, lineHeight: 1.6, fontWeight: 400 }}>
+                  The war premium always fades. Stocks recover within ~1 month of conflict start.<br />
+                  <span style={{ color: C.teal }}>The only exception: sustained, real supply disruption (Gulf War, Russia-Ukraine).</span><br />
+                  <span style={{ color: C.red }}>The 2026 Iran conflict already has one — Hormuz is closed.</span>
+                </p>
+              </div>
+            </div>
+          );
+
+          /* === TAB 2: ENTRY TIMING === */
+          if (tab === 2) return (
+            <div className="fade-up" key="t2">
+              <SH num="03" title={<>ENTRY TIMING <span style={{ color: C.teal }}>FRAMEWORK</span></>} sub="5 PHASES · PROBABILISTIC ENTRY WINDOWS · 4TH INDUSTRIAL REVOLUTION" />
+
+              <div style={{ position: "relative" }}>
+                <div style={{ position: "absolute", left: 23, top: 0, bottom: 0, width: 2, background: `linear-gradient(180deg, ${C.muted}44, ${C.green}44)`, zIndex: 0 }} />
+                {phases.map((p, i) => (
+                  <div key={i} style={{ position: "relative", zIndex: 1, marginBottom: 3 }}>
+                    <div style={{
+                      position: "absolute", left: 16, top: 18, width: 16, height: 16, borderRadius: "50%",
+                      background: C.bg, border: `3px solid ${p.c}`, zIndex: 2,
+                      boxShadow: i === 0 ? `0 0 10px ${p.c}55` : "none",
+                    }} />
+                    <div style={{ marginLeft: 46 }}>
+                      <div style={{
+                        display: "flex", gap: 0, background: C.card, border: `1px solid ${C.border}`,
+                        borderLeft: `4px solid ${p.c}`, overflow: "hidden",
+                      }}>
+                        <div style={{ width: 48, display: "flex", alignItems: "center", justifyContent: "center", borderRight: `1px solid ${C.border}`, flexShrink: 0 }}>
+                          <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, fontWeight: 700, color: p.c }}>{p.id}</span>
+                        </div>
+                        <div style={{ flex: 1, padding: "12px 16px" }}>
+                          <div className="phase-card-inner" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
+                            <div>
+                              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 18, fontWeight: 600, color: C.white }}>{p.name}</div>
+                              <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>{p.tl} · {p.dt}</div>
+                            </div>
+                            <div className="phase-actions" style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                              <div style={{ textAlign: "right" }}>
+                                <div style={{ fontSize: 10, color: C.dim }}>OIL</div>
+                                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, fontWeight: 600, color: C.orange }}>{p.oil}</div>
+                              </div>
+                              <div style={{ background: `${p.ac}15`, border: `1px solid ${p.ac}44`, padding: "3px 10px", borderRadius: 2 }}>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: p.ac, letterSpacing: 1 }}>{p.act}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ fontSize: 11, color: C.muted, marginTop: 8, lineHeight: 1.5 }}>{p.desc}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Optimal entry zone */}
+              <div style={{
+                background: `linear-gradient(135deg, ${C.green}0a, ${C.teal}06)`,
+                border: `1px solid ${C.green}33`, padding: "18px 20px", marginTop: 20,
+              }}>
+                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, fontWeight: 700, color: C.green, marginBottom: 8 }}>
+                  ⎯ OPTIMAL ENTRY ZONE: MARCH 14 – APRIL 4 ⎯
+                </div>
+                <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7 }}>
+                  History says the equity bottom comes within ~30 days of conflict start (Feb 28). Monitor: <span style={{ color: C.white }}>VIX &gt; 28</span>, <span style={{ color: C.white }}>SMH/SOXX -7% to -10%</span>, Hormuz reopening signals, Trump-Iran negotiation headlines.
+                  <span style={{ color: C.green, fontWeight: 600 }}> ISM at 52.4 provides a fundamental floor.</span>
+                </div>
+              </div>
+
+              {/* Tickers */}
+              <div style={{ marginTop: 18, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {["NVDA", "AVGO", "SMH", "SOXX", "VRT", "PLTR", "ISRG", "PWR", "AMD", "EQIX"].map((t, i) => (
+                  <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, padding: "5px 12px", fontSize: 11, fontWeight: 600, color: C.teal, letterSpacing: 1 }}>{t}</div>
+                ))}
+                <div style={{ padding: "5px 12px", fontSize: 10, color: C.dim, display: "flex", alignItems: "center" }}>← 4IR targets</div>
+              </div>
+            </div>
+          );
+
+          /* === TAB 3: RECOVERY TIMELINE === */
+          if (tab === 3) return (
+            <div className="fade-up" key="t3">
+              <SH num="04" title={<>RECOVERY <span style={{ color: C.green }}>TIMELINE</span></>} sub="SCENARIO-WEIGHTED RETURN ESTIMATES · S&P 500 & SEMICONDUCTORS" />
+
+              {recoveryData.map((r, i) => (
+                <div key={i} style={{
+                  background: C.card, border: `1px solid ${C.border}`, borderLeft: `4px solid ${r.c}`,
+                  padding: "18px 20px", marginBottom: 6,
+                }}>
+                  <div className="recovery-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+                    <div>
+                      <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, fontWeight: 700, color: C.white }}>{r.scenario}</div>
+                      <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{r.sub}</div>
+                    </div>
+                    <div className="recovery-returns" style={{ display: "flex", gap: 18 }}>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 9, color: C.dim, letterSpacing: 1, marginBottom: 3 }}>S&P 500</div>
+                        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 24, fontWeight: 700, color: r.c }}>{r.sp}</div>
+                        <div style={{ fontSize: 9, color: C.dim }}>6-mo return</div>
+                      </div>
+                      <div style={{ width: 1, background: C.border }} />
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 9, color: C.dim, letterSpacing: 1, marginBottom: 3 }}>SMH/SEMIS</div>
+                        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 24, fontWeight: 700, color: C.teal }}>{r.smh}</div>
+                        <div style={{ fontSize: 9, color: C.dim }}>6-mo return</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 20, marginTop: 14, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ fontSize: 9, color: C.dim, letterSpacing: 1, marginBottom: 2 }}>TIME TO BOTTOM</div>
+                      <div style={{ fontSize: 12, color: C.white, fontWeight: 500 }}>{r.bottom}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 9, color: C.dim, letterSpacing: 1, marginBottom: 2 }}>RECOVERY PATH</div>
+                      <div style={{ fontSize: 12, color: C.white, fontWeight: 500 }}>{r.recovery}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="stat-row" style={{ marginTop: 24, display: "flex", gap: 14, flexWrap: "wrap" }}>
+                <StatBox label="WELLS FARGO BASE" value="7,500" sub="S&P 500 year-end 2026 (~9% upside)" accent={C.green} />
+                <StatBox label="WELLS FARGO WORST" value="6,000" sub="Sustained $100+ oil (−13%)" accent={C.red} />
+                <StatBox label="GOLDMAN OIL 4Q" value="$60" sub="WTI normalizes if short-lived" accent={C.teal} />
+              </div>
+
+              {/* Final callout */}
+              <div style={{
+                marginTop: 24, padding: "20px",
+                background: `linear-gradient(135deg, ${C.orange}0c, ${C.green}06)`,
+                border: `1px solid ${C.orange}33`,
+              }}>
+                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 18, fontWeight: 700, color: C.orange, marginBottom: 8 }}>
+                  OXFORD ECONOMICS / ALPINE MACRO
+                </div>
+                <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7 }}>
+                  "Sell any extreme moves in oil, energy, defense — these will fade. If growth assets fall sharply on war fears, <span style={{ color: C.green, fontWeight: 700 }}>buy the dip</span>. The conflict will not last beyond two months."
+                </div>
+                <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {[
+                    { t: "AFTER GULF WAR: S&P +16%", c: C.green },
+                    { t: "AFTER IRAQ: S&P +14%", c: C.green },
+                    { t: "SEMIS POST-CONFLICT: +20–40%", c: C.teal },
+                  ].map((b, i) => (
+                    <div key={i} style={{ background: `${b.c}12`, border: `1px solid ${b.c}33`, padding: "7px 14px" }}>
+                      <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, fontWeight: 700, color: b.c }}>{b.t}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* FOOTER */}
+        <div style={{ marginTop: 48, paddingTop: 16, borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+          <div style={{ fontSize: 9, color: C.dim, lineHeight: 1.6 }}>
+            * WTI/Brent crude oil. % moves measured peak-to-trough. Not financial advice. Educational purposes only.<br />
+            Sources: Goldman Sachs, Wells Fargo, Citi, Oxford Economics, ISM, Bloomberg, Reuters, Barclays, Wood Mackenzie.
+          </div>
+          <div style={{ fontSize: 9, color: C.dim }}>THE WEALTH SOCIETY © 2026</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(<App />, document.getElementById("root"));
+</script>
+</body>
+</html>
